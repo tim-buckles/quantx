@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>QuantX — Decision</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      max-width: 640px;
+      margin: auto;
+      padding: 24px;
+    }
+
+    h1 { font-size: 1.4rem; }
+
+    .box {
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .warning {
+      color: #fca5a5;
+      margin-bottom: 12px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 8px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .pass { background: #475569; color: #e5e7eb; }
+    .play { background: #22c55e; color: #022c22; }
+    .ignore { background: #ef4444; color: #fff; }
+
+    .locked {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    a {
+      color: #38bdf8;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+<h1>QuantX — Decision</h1>
+
+<div id="error" class="warning"></div>
+
+<div id="content" style="display:none;">
+
+  <div class="box">
+    <div id="game"></div>
+  </div>
+
+  <div class="box">
+    <label>Confidence Tier</label>
+    <select id="tier">
+      <option value="">Select</option>
+      <option value="A">A — Best</option>
+      <option value="B">B</option>
+      <option value="C">C</option>
+      <option value="D">D — Marginal</option>
+    </select>
+  </div>
+
+  <div class="box">
+    <button id="passBtn" class="pass">PASS</button>
+    <button id="playBtn" class="play">PLAY</button>
+    <button id="ignoreBtn" class="ignore">IGNORE</button>
+  </div>
+
+</div>
+
+<script>
+(function () {
+
+  const error = document.getElementById('error');
+  const content = document.getElementById('content');
+
+  const params = new URLSearchParams(window.location.search);
+  const gameParam = params.get('game');
+  const signalToken = params.get('signal');
+
+  // ---------- HARD DAY-CLOSED GATE ----------
+  const today = new Date().toISOString().slice(0,10);
+  if (localStorage.getItem(`quantx_day_closed_${today}`)) {
+    document.body.innerHTML = 'Day is closed. No further evaluation permitted.';
+    return;
+  }
+
+  // ---------- BASIC ACCESS VALIDATION ----------
+  if (!gameParam || !signalToken) {
+    error.textContent = 'Access denied.';
+    return;
+  }
+
+  const signalKey = `quantx_signal_${signalToken}`;
+  const evalLockKey = `quantx_eval_lock_${signalToken}`;
+
+  // ---------- EVALUATION ONE-WAY LOCK ----------
+  if (localStorage.getItem(evalLockKey)) {
+    error.textContent = 'This signal has already been evaluated.';
+    return;
+  }
+
+  // Lock evaluation immediately (survives refresh & back)
+  localStorage.setItem(evalLockKey, 'true');
+
+  // ---------- SIGNAL CONSUMPTION ----------
+  const signalRaw = localStorage.getItem(signalKey);
+  localStorage.removeItem(signalKey);
+
+  if (!signalRaw) {
+    error.textContent = 'Signal not found or already used.';
+    return;
+  }
+
+  let signal;
+  try {
+    signal = JSON.parse(signalRaw);
+  } catch {
+    error.textContent = 'Invalid signal state.';
+    return;
+  }
+
+  if (signal.game !== gameParam) {
+    error.textContent = 'Signal mismatch.';
+    return;
+  }
+
+  // ---------- SIGNAL EXPIRATION ----------
+  const SIGNAL_EXPIRY_MS = 15 * 60 * 1000;
+  if (Date.now() - signal.timestamp > SIGNAL_EXPIRY_MS) {
+    error.textContent = 'Signal expired. No evaluation permitted.';
+    return;
+  }
+
+  // ---------- BANKROLL GATE ----------
+  const bankroll = Number(localStorage.getItem('quantx_bankroll'));
+  const playBtn = document.getElementById('playBtn');
+
+  if (!bankroll || bankroll <= 0) {
+    playBtn.disabled = true;
+    playBtn.classList.add('locked');
+    error.innerHTML =
+      `Bankroll not set. PLAY is disabled.<br>
+       Go to <a href="bankroll.html">Bankroll Setup</a>.`;
+  }
+
+  // ---------- RENDER ----------
+  document.getElementById('game').textContent = gameParam;
+  content.style.display = 'block';
+
+  const tierSelect = document.getElementById('tier');
+  const passBtn = document.getElementById('passBtn');
+  const ignoreBtn = document.getElementById('ignoreBtn');
+
+  function lockButtons() {
+    [passBtn, playBtn, ignoreBtn].forEach(b => {
+      b.disabled = true;
+      b.classList.add('locked');
+    });
+  }
+
+  function logDecision(decision) {
+    const log = JSON.parse(localStorage.getItem('quantx_decisions') || '[]');
+    log.push({
+      game: gameParam,
+      decision,
+      tier: tierSelect.value || null,
+      timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('quantx_decisions', JSON.stringify(log));
+  }
+
+  passBtn.onclick = () => {
+    logDecision('PASS');
+    lockButtons();
+  };
+
+  ignoreBtn.onclick = () => {
+    logDecision('IGNORE');
+    lockButtons();
+  };
+
+  playBtn.onclick = () => {
+    if (playBtn.disabled) return;
+
+    const tier = tierSelect.value;
+    if (!tier) {
+      alert('Select a confidence tier first.');
+      return;
+    }
+
+    logDecision('PLAY');
+
+    const navToken = crypto.randomUUID();
+    localStorage.setItem(
+      'quantx_nav_token',
+      JSON.stringify({
+        game: gameParam,
+        tier,
+        decision: 'PLAY',
+        token: navToken,
+        timestamp: Date.now()
+      })
+    );
+
+    lockButtons();
+
+    window.location.href =
+      `stake.html?game=${encodeURIComponent(gameParam)}&token=${navToken}`;
+  };
+
+})();
+</script>
+
+</body>
+</html>

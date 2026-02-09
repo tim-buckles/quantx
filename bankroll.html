@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>QuantX — Bankroll Setup</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      max-width: 520px;
+      margin: auto;
+      padding: 24px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+
+    .box {
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: #020617;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: #94a3b8;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: #020617;
+      color: #e5e7eb;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+
+    .confirm {
+      background: #22c55e;
+      color: #022c22;
+    }
+
+    .danger {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .disabled {
+      background: #334155;
+      cursor: not-allowed;
+    }
+
+    .note {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-top: 8px;
+    }
+
+    .warning {
+      color: #fca5a5;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>QuantX — Bankroll Setup</h1>
+
+<div id="status" class="box"></div>
+
+<div class="box">
+  <label for="bankroll">Enter Total Bankroll ($)</label>
+  <input id="bankroll" type="number" min="1" step="1" placeholder="e.g. 5000" />
+  <div class="note">
+    This is your total risk capital. Stake sizing will be derived from this.
+  </div>
+
+  <button id="setBtn" class="confirm">
+    Set Bankroll
+  </button>
+</div>
+
+<div class="box">
+  <button id="resetBtn" class="danger">
+    Reset Bankroll (Intentional)
+  </button>
+  <div class="note">
+    This clears bankroll and daily exposure tracking.
+  </div>
+</div>
+
+<div id="message" class="warning"></div>
+
+<script>
+(function () {
+  const status = document.getElementById('status');
+  const bankrollInput = document.getElementById('bankroll');
+  const message = document.getElementById('message');
+  const setBtn = document.getElementById('setBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  const existing = localStorage.getItem('quantx_bankroll');
+
+  function renderStatus() {
+    if (existing) {
+      status.innerHTML = `
+        <strong>Current Bankroll:</strong><br/>
+        $${Number(existing).toLocaleString()}
+      `;
+      bankrollInput.disabled = true;
+      setBtn.disabled = true;
+      setBtn.classList.add('disabled');
+    } else {
+      status.textContent = 'No bankroll set.';
+    }
+  }
+
+  renderStatus();
+
+  setBtn.onclick = () => {
+    const value = Number(bankrollInput.value);
+
+    if (!value || value <= 0) {
+      message.textContent = 'Enter a valid bankroll amount.';
+      return;
+    }
+
+    if (!confirm(`Confirm bankroll set to $${value.toLocaleString()}?`)) {
+      return;
+    }
+
+    localStorage.setItem('quantx_bankroll', value);
+    alert('Bankroll set. This value will be used for all stake sizing.');
+    location.reload();
+  };
+
+  resetBtn.onclick = () => {
+    const confirmText = prompt(
+      'Type RESET to clear bankroll and daily exposure tracking.'
+    );
+
+    if (confirmText !== 'RESET') {
+      message.textContent = 'Reset cancelled.';
+      return;
+    }
+
+    // Remove bankroll
+    localStorage.removeItem('quantx_bankroll');
+
+    // Remove daily stake tracking
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('quantx_staked_'))
+      .forEach(k => localStorage.removeItem(k));
+
+    message.textContent = 'Bankroll and exposure tracking cleared.';
+    setTimeout(() => location.reload(), 1000);
+  };
+})();
+</script>
+
+</body>
+</html>

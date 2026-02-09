@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>QuantX</title>
+
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #020617;
+      color: #e5e7eb;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .container {
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 32px;
+      width: 360px;
+      background: #020617;
+    }
+
+    .logo {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: #020617;
+      color: #e5e7eb;
+      margin-bottom: 12px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 0.95rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #38bdf8;
+      color: #020617;
+    }
+
+    .error {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      color: #fca5a5;
+      display: none;
+    }
+
+    .footer {
+      margin-top: 20px;
+      font-size: 0.75rem;
+      color: #64748b;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <div class="logo">QuantX</div>
+  <div class="subtitle">discipline-first decision framework</div>
+
+  <label for="key">Access Key</label>
+  <input
+    type="password"
+    id="key"
+    placeholder="enter access key"
+    autocomplete="off"
+  />
+
+  <button id="enterBtn">Enter</button>
+
+  <div class="error" id="error">Access denied.</div>
+
+  <div class="footer">
+    process &gt; outcomes
+  </div>
+</div>
+
+<script>
+(function () {
+  // --- ACCESS CONFIG ---
+  // Intentional friction, not security.
+  const ACCESS_KEY = "2026"; // change if desired
+  const DESTINATION = "watchlist.html";
+
+  const input = document.getElementById("key");
+  const button = document.getElementById("enterBtn");
+  const error = document.getElementById("error");
+
+  function attemptEntry() {
+    if (input.value === ACCESS_KEY) {
+      sessionStorage.setItem("quantx_access", "granted");
+      window.location.href = DESTINATION;
+    } else {
+      error.style.display = "block";
+    }
+  }
+
+  button.onclick = attemptEntry;
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") attemptEntry();
+  });
+})();
+</script>
+
+</body>
+</html>

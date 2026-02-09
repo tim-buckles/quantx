@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>QuantX — Watchlist</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      max-width: 900px;
+      margin: auto;
+      padding: 24px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      border-bottom: 1px solid #334155;
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      color: #94a3b8;
+      font-weight: normal;
+    }
+
+    .league {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-right: 6px;
+    }
+
+    button {
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #38bdf8;
+      color: #020617;
+    }
+
+    .empty {
+      color: #94a3b8;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>QuantX — Signal Watchlist</h1>
+
+<table id="table" style="display:none;">
+  <thead>
+    <tr>
+      <th>Game</th>
+      <th>Trigger</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<div id="empty" class="empty"></div>
+
+<script>
+(async function () {
+
+  const table = document.getElementById('table');
+  const tbody = table.querySelector('tbody');
+  const empty = document.getElementById('empty');
+
+  let results = [];
+
+  try {
+    const [mlbRes, nbaRes] = await Promise.all([
+      fetch('/quantx'),
+      fetch('/quantx-nba')
+    ]);
+
+    const mlb = await mlbRes.json();
+    const nba = await nbaRes.json();
+
+    if (Array.isArray(mlb.candidates)) results.push(...mlb.candidates);
+    if (Array.isArray(nba.candidates)) results.push(...nba.candidates);
+
+  } catch {
+    empty.textContent = 'Signal feed unavailable.';
+    return;
+  }
+
+  if (results.length === 0) {
+    empty.textContent = 'No active signals.';
+    return;
+  }
+
+  table.style.display = 'table';
+
+  results.forEach(row => {
+    const token = crypto.randomUUID();
+
+    localStorage.setItem(
+      `quantx_signal_${token}`,
+      JSON.stringify({
+        game: row.game,
+        league: row.league || 'MLB',
+        timestamp: Date.now()
+      })
+    );
+
+    const tr = document.createElement('tr');
+
+    tr.innerHTML = `
+      <td>
+        <span class="league">[${row.league || 'MLB'}]</span>
+        ${row.game}
+      </td>
+      <td>${row.trigger || 'Market Movement'}</td>
+      <td><button>Evaluate</button></td>
+    `;
+
+    tr.querySelector('button').onclick = () => {
+      window.open(
+        `evaluate.html?game=${encodeURIComponent(row.game)}&signal=${token}`,
+        '_blank',
+        'noopener,noreferrer'
+      );
+    };
+
+    tbody.appendChild(tr);
+  });
+
+})();
+</script>
+
+</body>
+</html>

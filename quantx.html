@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QuantX</title>
+
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+      color: #000;
+      font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
+    }
+
+    .terminal {
+      border: 1px solid #000;
+      padding: 28px;
+      width: 360px;
+    }
+
+    .title {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 6px;
+      font-family: inherit;
+      font-size: 14px;
+      border: 1px solid #000;
+      background: #fff;
+      margin-bottom: 12px;
+    }
+
+    button {
+      width: 100%;
+      padding: 6px;
+      font-family: inherit;
+      font-size: 14px;
+      background: #000;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    .error {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #a00000;
+      display: none;
+    }
+
+    .footer {
+      margin-top: 18px;
+      font-size: 11px;
+      color: #555;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="terminal">
+  <div class="title">QuantX</div>
+  <div class="subtitle">a decision framework</div>
+
+  <input type="password" id="password" placeholder="enter access key" />
+  <button onclick="authenticate()">enter</button>
+
+  <div class="error" id="error">Access denied.</div>
+
+  <div class="footer">
+    process &gt; opinion
+  </div>
+</div>
+
+<script>
+  /*
+    QUANTX ACCESS CONFIG
+    -------------------
+    Update passwords and destinations here
+  */
+  const ACCESS = {
+    "2026": "/projects/quantx-decision.html"
+  };
+
+  function authenticate() {
+    const input = document.getElementById("password").value;
+    const error = document.getElementById("error");
+
+    if (ACCESS[input]) {
+      sessionStorage.setItem("authorized", "true");
+      window.location.href = ACCESS[input];
+    } else {
+      error.style.display = "block";
+    }
+  }
+</script>
+
+</body>
+</html>

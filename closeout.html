@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>QuantX — Day Complete</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      max-width: 640px;
+      margin: auto;
+      padding: 32px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 16px;
+    }
+
+    .box {
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: #020617;
+    }
+
+    .label {
+      color: #94a3b8;
+      font-size: 0.85rem;
+    }
+
+    .value {
+      font-size: 1.2rem;
+      margin-top: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+
+    th, td {
+      border-bottom: 1px solid #334155;
+      padding: 8px;
+      font-size: 0.9rem;
+      text-align: left;
+    }
+
+    th {
+      color: #94a3b8;
+      font-weight: normal;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #22c55e;
+      color: #022c22;
+      margin-top: 20px;
+    }
+
+    .locked {
+      background: #334155;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Day Complete</h1>
+
+<div id="error"></div>
+
+<div id="content" style="display:none;">
+
+  <div class="box">
+    <div class="label">Date</div>
+    <div class="value" id="date"></div>
+  </div>
+
+  <div class="box">
+    <div class="label">Bankroll</div>
+    <div class="value" id="bankroll"></div>
+  </div>
+
+  <div class="box">
+    <div class="label">Daily Exposure</div>
+    <div class="value" id="exposure"></div>
+  </div>
+
+  <div class="box">
+    <div class="label">Plays Today</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Game</th>
+          <th>Tier</th>
+          <th>Stake</th>
+        </tr>
+      </thead>
+      <tbody id="plays"></tbody>
+    </table>
+  </div>
+
+  <button id="ackBtn">Acknowledge Day Complete</button>
+
+</div>
+
+<script>
+(function () {
+  const today = new Date().toISOString().slice(0,10);
+  const closedKey = `quantx_day_closed_${today}`;
+  const stakedKey = `quantx_staked_${today}`;
+
+  const bankroll = Number(localStorage.getItem('quantx_bankroll'));
+  if (!bankroll || bankroll <= 0) {
+    document.getElementById('error').textContent =
+      'Bankroll not set.';
+    return;
+  }
+
+  const DAILY_CAP = bankroll * 0.05;
+  const stakedToday = Number(localStorage.getItem(stakedKey)) || 0;
+
+  if (stakedToday < DAILY_CAP) {
+    document.getElementById('error').textContent =
+      'Daily exposure cap not reached.';
+    return;
+  }
+
+  document.getElementById('date').textContent = today;
+  document.getElementById('bankroll').textContent =
+    `$${bankroll.toLocaleString()}`;
+  document.getElementById('exposure').textContent =
+    `$${Math.floor(stakedToday)} / $${Math.floor(DAILY_CAP)}`;
+
+  const log =
+    JSON.parse(localStorage.getItem('quantx_stakes') || '[]')
+      .filter(s => s.timestamp.startsWith(today));
+
+  const tbody = document.getElementById('plays');
+
+  log.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(p.timestamp).toLocaleTimeString()}</td>
+      <td>${p.game}</td>
+      <td>${p.tier}</td>
+      <td>$${p.stake}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('ackBtn').onclick = () => {
+    localStorage.setItem(closedKey, 'true');
+    const btn = document.getElementById('ackBtn');
+    btn.textContent = 'Day Locked';
+    btn.disabled = true;
+    btn.classList.add('locked');
+  };
+
+  document.getElementById('content').style.display = 'block';
+})();
+</script>
+
+</body>
+</html>

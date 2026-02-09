@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>QuantX — Stake Sizing</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      max-width: 520px;
+      margin: auto;
+      padding: 24px;
+    }
+
+    h1 { font-size: 1.4rem; }
+
+    .box {
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: #020617;
+    }
+
+    .label {
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    .stake {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .error {
+      color: #fca5a5;
+      margin-top: 12px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #22c55e;
+      color: #022c22;
+    }
+
+    button.locked {
+      background: #334155;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+
+<h1>QuantX — Stake Sizing</h1>
+
+<div id="error" class="error"></div>
+
+<div id="content" style="display:none;">
+  <div class="box">
+    <div class="label">Matchup</div>
+    <div id="game"></div>
+  </div>
+
+  <div class="box">
+    <div class="label">Confidence Tier</div>
+    <div id="tier"></div>
+  </div>
+
+  <div class="box">
+    <div class="label">Allowed Stake</div>
+    <div class="stake" id="stake"></div>
+    <div class="label">Rounded down. Caps enforced.</div>
+  </div>
+
+  <button id="confirm">Confirm Stake</button>
+</div>
+
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const gameParam = params.get('game');
+  const tokenParam = params.get('token');
+
+  const error = document.getElementById('error');
+  const content = document.getElementById('content');
+
+  // --- DAY CLOSED GUARD ---
+  const today = new Date().toISOString().slice(0,10);
+  if (localStorage.getItem(`quantx_day_closed_${today}`)) {
+    error.textContent = 'Day is closed. No further stakes permitted.';
+    return;
+  }
+
+  // --- NAVIGATION TOKEN GUARD ---
+  const navRaw = localStorage.getItem('quantx_nav_token');
+  if (!navRaw) {
+    error.textContent = 'Access denied.';
+    return;
+  }
+
+  let nav;
+  try {
+    nav = JSON.parse(navRaw);
+  } catch {
+    error.textContent = 'Invalid navigation state.';
+    return;
+  }
+
+  if (
+    nav.decision !== 'PLAY' ||
+    nav.game !== gameParam ||
+    nav.token !== tokenParam
+  ) {
+    error.textContent = 'Decision mismatch.';
+    return;
+  }
+
+  if (Date.now() - nav.timestamp > 10 * 60 * 1000) {
+    localStorage.removeItem('quantx_nav_token');
+    error.textContent = 'Decision expired.';
+    return;
+  }
+
+  // Burn token immediately
+  localStorage.removeItem('quantx_nav_token');
+  history.replaceState(null, '', location.pathname);
+
+  // --- BANKROLL REQUIRED ---
+  const bankroll = Number(localStorage.getItem('quantx_bankroll'));
+  if (!bankroll || bankroll <= 0) {
+    error.textContent = 'Bankroll not set.';
+    return;
+  }
+
+  // --- STAKE RULES ---
+  const BASE_UNIT = 0.01;
+  const TIER_MULT = { A:1, B:0.75, C:0.5, D:0.25 };
+  const MAX_PLAY = 0.02;
+  const MAX_DAY = 0.05;
+
+  const todayKey = `quantx_staked_${today}`;
+  const stakedToday = Number(localStorage.getItem(todayKey)) || 0;
+
+  let stake =
+    bankroll * BASE_UNIT * TIER_MULT[nav.tier];
+
+  stake = Math.min(stake, bankroll * MAX_PLAY);
+  stake = Math.min(stake, bankroll * MAX_DAY - stakedToday);
+  stake = Math.floor(stake);
+
+  if (stake <= 0) {
+    error.textContent = 'Daily exposure cap reached.';
+    window.location.href = 'closeout.html';
+    return;
+  }
+
+  document.getElementById('game').textContent = nav.game;
+  document.getElementById('tier').textContent = nav.tier;
+  document.getElementById('stake').textContent = `$${stake}`;
+  content.style.display = 'block';
+
+  document.getElementById('confirm').onclick = () => {
+    localStorage.setItem(todayKey, stakedToday + stake);
+
+    const log = JSON.parse(localStorage.getItem('quantx_stakes') || '[]');
+    log.push({
+      game: nav.game,
+      tier: nav.tier,
+      stake,
+      timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('quantx_stakes', JSON.stringify(log));
+
+    const btn = document.getElementById('confirm');
+    btn.textContent = 'Stake Locked';
+    btn.disabled = true;
+    btn.classList.add('locked');
+
+    // --- AUTO CLOSEOUT ---
+    const dailyCap = bankroll * MAX_DAY;
+    if (stakedToday + stake >= dailyCap) {
+      window.location.href = 'closeout.html';
+    }
+  };
+})();
+</script>
+
+</body>
+</html>

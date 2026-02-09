@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>QuantX — Exposure Dashboard</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      max-width: 720px;
+      margin: auto;
+      padding: 24px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 20px;
+    }
+
+    .box {
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: #020617;
+    }
+
+    .label {
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    .value {
+      font-size: 1.2rem;
+      margin-top: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+
+    th, td {
+      border-bottom: 1px solid #334155;
+      padding: 8px;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th {
+      color: #94a3b8;
+      font-weight: normal;
+    }
+
+    .warning {
+      color: #fca5a5;
+    }
+
+    .muted {
+      color: #94a3b8;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+<h1>QuantX — Exposure Dashboard</h1>
+
+<div id="error" class="warning"></div>
+
+<div id="content" style="display:none;">
+
+  <div class="box">
+    <div class="label">Bankroll</div>
+    <div class="value" id="bankroll"></div>
+  </div>
+
+  <div class="box">
+    <div class="label">Daily Exposure</div>
+    <div class="value" id="dailyExposure"></div>
+    <div class="muted">Max 5% of bankroll per day</div>
+  </div>
+
+  <div class="box">
+    <div class="label">Remaining Allowance Today</div>
+    <div class="value" id="remaining"></div>
+  </div>
+
+  <div class="box">
+    <div class="label">Today's Stakes</div>
+    <table id="stakesTable">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Game</th>
+          <th>Tier</th>
+          <th>Stake</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div id="noStakes" class="muted"></div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const error = document.getElementById('error');
+  const content = document.getElementById('content');
+
+  const bankroll = Number(localStorage.getItem('quantx_bankroll'));
+  if (!bankroll || bankroll <= 0) {
+    error.textContent =
+      'Bankroll not set. Exposure cannot be calculated.';
+    return;
+  }
+
+  const DAILY_CAP_PCT = 0.05;
+  const dailyCap = bankroll * DAILY_CAP_PCT;
+
+  const today = new Date().toISOString().slice(0,10);
+  const todayKey = `quantx_staked_${today}`;
+  const stakedToday = Number(localStorage.getItem(todayKey)) || 0;
+
+  document.getElementById('bankroll').textContent =
+    `$${bankroll.toLocaleString()}`;
+
+  document.getElementById('dailyExposure').textContent =
+    `$${Math.floor(stakedToday).toLocaleString()} / $${Math.floor(dailyCap).toLocaleString()}`;
+
+  document.getElementById('remaining').textContent =
+    `$${Math.max(0, Math.floor(dailyCap - stakedToday)).toLocaleString()}`;
+
+  const stakesLog =
+    JSON.parse(localStorage.getItem('quantx_stakes') || '[]');
+
+  const tbody = document.querySelector('#stakesTable tbody');
+  const todaysStakes = stakesLog.filter(
+    s => s.timestamp.startsWith(today)
+  );
+
+  if (todaysStakes.length === 0) {
+    document.getElementById('noStakes').textContent =
+      'No stakes placed today.';
+  } else {
+    todaysStakes.forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${new Date(s.timestamp).toLocaleTimeString()}</td>
+        <td>${s.game}</td>
+        <td>${s.tier}</td>
+        <td>$${s.stake}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  content.style.display = 'block';
+})();
+</script>
+
+</body>
+</html>
